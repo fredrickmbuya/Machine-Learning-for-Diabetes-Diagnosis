@@ -1,0 +1,281 @@
+---
+title: "DIABETES DISEASE DIAGNOSIS"
+author: "Fredrick George Mbuya"
+date: "2023-06-23"
+output:
+  pdf_document:
+    toc: true 
+    toc_depth: 3
+    number_sections: true
+    highlight: tango
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries used
+```{r}
+# Importing the 'modeest' package for estimating statistical modes or working with statistical distributions
+library(modeest)
+
+# Importing the 'ggplot2' package for creating visually appealing and customizable plots
+library(ggplot2)
+
+# Importing the 'lattice' package for creating conditioned plots
+library(lattice)
+
+# Importing the 'caret' package for machine learning tasks such as data preprocessing, model training, and performance evaluation
+library(caret)
+
+# Importing the 'mlbench' package for benchmark datasets commonly used in machine learning research
+library(mlbench)
+
+# Importing the 'dlookr' package for data exploration and outlier detection
+library(dlookr)
+
+# Load the dplyr library, which provides a grammar of data manipulation.
+# dplyr offers a collection of functions like filter(), mutate(), select(), and group_by()
+# for efficiently transforming, summarizing, and working with data frames.
+library(dplyr)
+
+# Load the randomForest library, which implements the random forest algorithm.
+library(randomForest)
+```
+
+# Loading the dataset
+```{r}
+# Reading the csv data file "diabetes.csv" into the 'diabetes' dataframe
+diabetes <- read.csv("diabetes.csv", stringsAsFactors = TRUE, na.strings = c("","NA"))
+```
+
+# Data pre-processing
+## Generating a summary
+```{r}
+# Generating a summary of the 'diabetes' dataframe
+summary(diabetes)
+```
+
+Pregnancies: The mean number of pregnancies is 3.845, with a median of 3. This suggests that the distribution is slightly positively skewed, as the mean is slightly higher than the median. The minimum value of 0 indicates that some individuals in the dataset have never been pregnant, which is a possible scenario. However, it's worth noting that the maximum value of 17 pregnancies is relatively high and may be considered an outlier. While it is technically possible for someone to have a high number of pregnancies, it is relatively uncommon and not representative of the majority of the population. The presence of this outlier suggests that there may be one or a few individuals with exceptionally high numbers of pregnancies in the dataset.
+
+Glucose: The mean glucose level is 120.9, with a median of 117. The minimum value of 0 seems unrealistic for glucose levels and may indicate missing or invalid data. It is important to investigate and address the presence of such values in the dataset. The maximum value of 199 indicates a relatively wide range of glucose levels among the individuals included.
+
+BloodPressure: The mean blood pressure is 69.11, with a median of 72. The minimum value of 0 is also concerning, as it is unrealistic for blood pressure readings and may indicate missing or invalid data. Similarly to the glucose variable, further investigation and data validation are necessary to address this issue. The maximum value of 122 suggests a range of blood pressure measurements in the dataset.
+
+SkinThickness: The mean skin thickness is 20.54, with a median of 23. The minimum value of 0 is once again concerning, as it seems unrealistic for skin thickness measurements and may indicate missing or invalid data. It is crucial to investigate and address the presence of such values in the dataset. The maximum value of 99 indicates a wide range of skin thickness measurements among the individuals included. 
+
+Insulin: The mean insulin level is 79.8, with a median of 30.5. Similar to the previous variables, the presence of a minimum value of 0 is concerning, as it could indicate missing or invalid data. It is important to carefully investigate and handle these zero values appropriately. The maximum value of 846 suggests a wide range of insulin levels in the dataset. 
+
+BMI: The mean BMI (Body Mass Index) is 31.99, with a median of 32. The minimum value of 0 is once again concerning, as it is unrealistic for BMI measurements and may indicate missing or invalid data. It is important to investigate and address the presence of such values in the dataset. The maximum value of 67.1 indicates a wide range of BMI values among the individuals included. 
+
+DiabetesPedigreeFunction: The mean diabetes pedigree function is 0.4719, with a median of 0.3725. This function provides information about the genetic influence of diabetes based on family history. The values range from 0.0780 to 2.4200.
+
+Age: The mean age is 33.24, with a median of 29. The minimum age is 21, and the maximum age is 81. These age statistics provide an overview of the age distribution within the dataset. The range of ages suggests that the dataset includes individuals spanning a wide age range. 
+
+Outcome: The outcome variable represents whether an individual has diabetes or not, with 0 indicating no diabetes and 1 indicating diabetes. The mean value is 0.349, indicating that approximately 34.9% of the individuals in the dataset have diabetes.Furthermore this variable supposed to be factor and not numerical.
+
+## Change the target variable to factor
+```{r}
+# Converting the "Outcome" variable to factor
+diabetes$Outcome <- as.factor(diabetes$Outcome)
+```
+
+
+## Displaying the structure
+```{r}
+# Displaying the structure of the 'diabetes' dataframe
+str(diabetes)
+```
+The structure of the dataset is confirmed
+
+## Missing values analysis
+```{r}
+# Calculating the column-wise sum of missing values in the 'diabetes' dataframe
+colSums(is.na(diabetes))
+```
+Confirmed no missing values
+
+## Duplicates removal and variable name improvement
+```{r}
+# Removing duplicate rows
+diabetes <- unique(diabetes)
+
+# Renaming the 'DiabetesPedigreeFunction' column to 'DiabetesPF'.
+diabetes <- rename(diabetes, DiabetesPF = DiabetesPedigreeFunction)
+```
+
+Confirmed no duplicates records
+
+## Outliers handling
+```{r}
+# Selecting numerical variables from diabetes data frame
+numerical_vars <- diabetes[, sapply(diabetes, is.numeric)]
+
+# Plot outliers in numerical variables
+plot_outlier(numerical_vars)
+```
+
+```{r}
+# Identify nature of outliers using boxplot statistics
+boxplot.stats(diabetes$Pregnancies)$out
+boxplot.stats(diabetes$Glucose)$out
+boxplot.stats(diabetes$BloodPressure)$out
+boxplot.stats(diabetes$SkinThickness)$out
+boxplot.stats(diabetes$Insulin)$out
+boxplot.stats(diabetes$BMI)$out
+boxplot.stats(diabetes$DiabetesPF)$out 
+boxplot.stats(diabetes$Age)$out
+```
+For the variable "Pregnancies," the outliers identified are 15, 17, 14, and 14. These values indicate that there are individuals in the dataset with exceptionally high numbers of pregnancies compared to the rest of the data. 
+
+For the variable "Glucose," the outliers identified are all 0. These values indicate missing or invalid data points rather than true outliers.
+
+Based on the observed outliers in the Blood Pressure variable, it is important to note that these values may not necessarily indicate wrong or erroneous data. Instead, they could be indicative of abnormal health conditions related to blood pressure. Outliers above the expected range may signify hypertension, while outliers below the range (excluding the zeros) may suggest low blood pressure or hypotension.
+
+Outliers in the Skin Thickness variable, such as a value of 99, require further investigation. These extreme values may be indicative of unusual or uncommon measurements within the dataset and may warrant consideration in the analysis.
+
+In the Insulin variable, outliers that are significantly higher than the rest of the data suggest individuals with exceptionally high insulin levels. These outliers may be related to specific medical conditions or other factors affecting insulin production or metabolism.
+
+Outliers in the BMI variable, including zero values, may indicate missing or invalid data. These outliers should be treated as missing values and imputed using appropriate techniques to ensure the integrity of the analysis.
+
+The Diabetes Pedigree Function variable's outliers may represent extreme values in the genetic diabetes score. These outliers may have implications for understanding the hereditary component of diabetes risk.
+
+In the Age variable, outliers such as individuals with ages above or below the expected range may reflect unique cases within the dataset. These outliers provide insights into the age distribution and may have distinct characteristics or experiences relevant to the analysis.
+
+*Under normal health conditions, human glucose levels, blood pressure, BMI, and age cannot be zero, as these values are integral to physiological functioning. If any of these variables are recorded as zero, it suggests that the individual does not exist. Therefore, all observed zero values in the dataset during summary statistics and outlier handling likely signify missing values rather than wrong data or valid data points. Following that, the technique known as median imputation is employed to resolve these possible missing data. The proposed methodology involves substituting the discovered zero values in certain numerical variables with the corresponding variable's median value. Utilising median imputation is considered a robust approach for addressing missing data, specifically in numerical variables. This method effectively reduces the impact of outliers while still maintaining the central tendency of the dataset.*
+
+
+```{r}
+# Removing the Zero values in some variables
+diabetes$Pregnancies[which(diabetes$Pregnancies==0)]<- median(diabetes$Pregnancies)
+diabetes$Glucose[which(diabetes$Glucose==0)] <- median(diabetes$Glucose)
+diabetes$BloodPressure[which(diabetes$BloodPressure==0)] <- median(diabetes$BloodPressure)
+diabetes$SkinThickness[which(diabetes$SkinThickness==0)] <- median(diabetes$SkinThickness)
+diabetes$Insulin[which(diabetes$Insulin==0)] <- median(diabetes$Insulin)
+diabetes$Insulin[which(diabetes$BMI==0)] <- median(diabetes$BMI)
+diabetes$DiabetesPF[which(diabetes$DiabetesPF==0)]<- median(diabetes$DiabetesPF)
+diabetes$Age[which(diabetes$Age==0)] <- median(diabetes$Age)
+```
+
+# Data analysis
+## Correlation analysis
+```{r}
+# Calculating correlation matrix and rounding to 2 decimal places
+round(cor(numerical_vars), 2)
+```
+The sole correlation observed with a coefficient above 0.5 is between the variables 'Pregnancies' and 'Age', with a value of 0.54. This correlation can be considered moderate, indicating a significant relationship between the two variables. As individuals grow older, the probability of encountering a greater number of pregnancies tends to increase.
+
+In addition to the correlation between pregnancies and age, the remaining correlations among the independent variables were all below 0.5, indicating low levels of correlation. These low correlations further suggest the absence of multicollinearity among the independent variables in the dataset. 
+
+## Logistic regression analysis
+```{r}
+# Attaching the "Diabetes" data frame
+attach(diabetes)
+
+# Building the logistic regression model
+logitA <- glm(Outcome ~ Pregnancies + Glucose + BloodPressure + SkinThickness + Insulin + BMI +DiabetesPF + Age,family = binomial)
+
+# Summarizing the logistic regression model
+summary(logitA)
+```
+
+In this analysis, variables such as "Pregnancies," "Glucose,", "BMI," and "DiabetesPF" have coefficients with statistically significant p-values (p < 0.05), indicating that they have a significant influence on the log-odds of the outcome (dependent variable).
+
+Among these variables, "Glucose" and "BMI" have the largest coefficient magnitudes, suggesting that they have a relatively higher influence on the outcome. Specifically, for each unit increase in "Glucose," the log-odds of the outcome increase by 0.0382817. Similarly, for each unit increase in "BMI," the log-odds of the outcome increase by 0.0798234.
+
+Variables such as "Pregnancies," and "DiabetesPF" also have statistically significant coefficients but with smaller magnitudes compared to "Glucose" and "BMI." The remaining variables, "SkinThickness," "BloodPressure," "Insulin," and "Age," do not have statistically significant coefficients (p > 0.05), indicating that they may have less influence on the outcome.
+
+## odds ratio analysis
+```{r}
+# Calculating and interpreting the odds ratio
+exp(coef(logitA))
+```
+
+Here are the interpretations of the coefficients:
+
+- (Intercept): The odds of the dependent variable when all independent variables are zero. The value of the intercept is 0.0001465762 
+
+- Pregnancies: For each unit increase in the number of pregnancies, the odds of the dependent variable increase by a factor of approximately 1.15  
+
+- Glucose: For each unit increase in the glucose level, the odds of the dependent variable increase by a factor of approximately 1.04
+
+- BloodPressure: For each unit increase in the blood pressure, the odds of the dependent variable decrease by a factor of approximately 0.99.
+
+- SkinThickness: For each unit increase in the skin thickness, the odds of the dependent variable increase by a factor of approximately 1.00.
+
+- Insulin: For each unit increase in the insulin level, the odds of the dependent variable decrease by a factor of approximately 0.99.
+
+- BMI: For each unit increase in the BMI (body mass index), the odds of the dependent variable increase by a factor of approximately 1.08.
+
+- DiabetesPF: For each unit increase in the diabetes pedigree function, the odds of the dependent variable increase by a factor of approximately 2.57.
+
+- Age: For each unit increase in age, the odds of the dependent variable increase by a factor of approximately 1.01.
+
+Based on the coefficients, the independent variables with higher magnitudes have a stronger influence on the odds of the dependent variable. In this case, "DiabetesPF" has the highest coefficient, indicating it has the greatest influence on the odds of the dependent variable. "BMI" and "Pregnancies" also have relatively high coefficients, suggesting they have significant influences on the odds. Meanwhile, "BloodPressure" and "Insulin" have coefficients close to 1, indicating weaker influences on the odds. The remaining variables, including "SkinThickness" and "Age," have coefficients very close to 1, suggesting they have little to no influence on the odds of the dependent variable.
+
+*In conclusion, the logistic regression analysis reveals that the likelihood of developing diabetes is significantly increased by four main factors: a greater number of pregnancies, higher glucose levels, elevated BMI, and a positive family history of diabetes.*
+
+# Model training, testing, and evaluation
+```{r}
+# Set the random seed for reproducibility
+set.seed(1994)
+
+# Determine the number of rows in the 'diabetes' data frame
+n_rows <- nrow(diabetes)
+
+# Create a random sample of indices for splitting the data into training and testing sets (70% for training)
+idx <- sample(n_rows, n_rows*0.7)
+
+# Create the training and testing data sets using the sampled indices
+trainData <- diabetes[idx,]
+testData <- diabetes[-idx,]
+
+# Define the formula for the random forest model using the relevant features
+formula <- Outcome ~ Pregnancies + Glucose + BloodPressure + SkinThickness + Insulin + BMI + DiabetesPF + Age
+
+# Set up cross-validation parameters for the model (100 iterations)
+ctrl <- trainControl(method = 'repeatedcv', number = 10, repeats = 3, savePredictions = "final")
+
+# Train the random forest model using cross-validation
+model <- train(formula, data = trainData, method='rf', trControl=ctrl)
+
+# Display the cross-validation model
+model
+
+# Make predictions 
+predictions <- predict(model, testData[,-9], type = 'raw')
+
+# Computing the confusion matrix
+co_matrix <- confusionMatrix(predictions, testData$Outcome)
+co_matrix
+```
+
+. The model's accuracy of approximately 76% suggests a good level of predictive capacity, as demonstrated by its ability to make correct classifications. This accuracy, falling within a 95% confidence interval of (0.697, 0.8114), further reinforces the reliability of the model's predictions.
+. The model demonstrates a sensitivity of 80.26%, indicating its proficiency in accurately detecting individuals with diabetes. A higher sensitivity suggests a reduced likelihood of false negatives,effectively identifying a substantial portion of positive instances with accuracy.
+. Conversely, the specificity level stands at 67.09%, reflecting the model's capacity to accurately classify individuals without diabetes. A greater specificity implies a reduced likelihood of false positives, effectively categorizing a significant proportion of negative instances with accuracy.
+
+
+# Variable importance measure
+```{r}
+# Extract variable importance
+var_importance_rf_model_CV <- varImp(model)
+var_importance_rf_model_CV
+
+# Create a bar plot of variable importance
+gg <- ggplot(var_importance_rf_model_CV, aes(x = rownames(var_importance_rf_model_CV), y = Overall)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(x = "Variable",
+       y = "Importance Score") +
+theme_minimal() +  # Change the theme here
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        # Customize label appearance
+        axis.text = element_text(face = "bold", color = "red", size = 12))
+
+# Save the plot as a file (e.g., in PNG format)
+ggsave("variable_importance_plot.png", gg, width = 4, height = 2)
+```
+
+. Glucose emerges as the most influential variable (score: 100), signifying its pivotal role in predicting diabetes risk. BMI follows closely behind (score: 65.76), emphasizing weight control's importance. Age (score: 52.08) also significantly influences diabetes likelihood. The Diabetes Pedigree Function (score: 32.32) indicates a genetic predisposition to diabetes. Blood Pressure and Skin Thickness contribute moderately (scores: 12.93 and 10.68), while Pregnancies show a moderate influence (score: 7.17). Insulin has the least influence (score: 0) on diabetes prediction within the model.
+
